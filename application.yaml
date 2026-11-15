@@ -1,0 +1,45 @@
+parent:
+  mode: server
+  selected: null
+ai-server:
+  docker:
+    host: tcp://localhost:2375
+  ssh: {}
+  heygem: {}
+  embedding: {}
+  milvus: {}
+  mcp: {}
+  elastic: {}
+
+# This file is loaded twice: by Spring Boot (working directory config) and by
+# avaje-config, where it overrides the copies packaged inside the jar.
+# HTTP is 7031; only the database port stays off 3306 so this bundle's MariaDB can
+# sit next to the one on Windows.
+server:
+  port: 7031
+  hookCssHostUrl: false
+
+datasource:
+  db:
+    url: "jdbc:mariadb://127.0.0.1:3307/alumin-link?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8"
+
+openApi:
+  clients: {}
+  default: default
+  baseUrl: ''
+compose:
+  openBrowserOnStart: true
+
+# Imported sample data must not be rebuilt away: with ddl.run=true Ebean runs
+# db-drop-all.sql + db-create-all.sql on first database access, emptying every table.
+ebean:
+  ddl:
+    generate: false
+    run: false
+  db:
+    ddl:
+      generate: false
+      run: false
+
+# host-work-dir is intentionally absent: it defaults to the working directory,
+# which is this folder, so work/files stays inside the bundle on any machine.

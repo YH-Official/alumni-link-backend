@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校友链接 Alumni Link · 服务状态</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f6f7fb;
+            --card: #ffffff;
+            --text: #1f2430;
+            --muted: #6b7280;
+            --primary: #2563eb;
+            --border: #e5e7eb;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #11151c;
+                --card: #1a2029;
+                --text: #e8ebf0;
+                --muted: #9aa4b2;
+                --primary: #60a5fa;
+                --border: #2a3240;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .card {
+            width: 100%;
+            max-width: 560px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .08);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: rgba(34, 197, 94, .12);
+            color: #16a34a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #16a34a;
+        }
+        h1 {
+            margin: 20px 0 8px;
+            font-size: 24px;
+            letter-spacing: -.01em;
+        }
+        p {
+            margin: 0 0 12px;
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        code {
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(127, 127, 127, .12);
+            font-size: 13px;
+        }
+        .tip {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border);
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <span class="badge"><span class="dot"></span>服务运行中</span>
+    <h1>校友链接 · 后台服务</h1>
+    <p>当前部署只启动了后端 API，Web 管理端的构建产物尚未发布到本目录。</p>
+    <p>桌面端与 Android 客户端可以直接使用；如需 Web 管理端，请将前端构建产物放到 <code>work/web/alumni-link/</code> 后刷新本页。</p>
+    <div class="tip">
+        服务地址：<code id="origin"></code><br>
+        接口前缀：<code>/api</code>，除登录、注册、公开内容外均需在 <code>Authorization</code> 头携带会话 token。
+    </div>
+</div>
+<script>
+    document.getElementById('origin').textContent = location.origin;
+</script>
+</body>
+</html>

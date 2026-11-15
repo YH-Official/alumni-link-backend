@@ -1,0 +1,11 @@
+package com.zxce.ai.util.spring
+
+import io.milvus.client.MilvusServiceClient
+
+interface MilvusServiceClientProvider {
+    val client: MilvusServiceClient
+}
+
+fun MilvusServiceClientProvider(block: () -> MilvusServiceClient) = object : MilvusServiceClientProvider {
+    override val client: MilvusServiceClient get() = block()
+}

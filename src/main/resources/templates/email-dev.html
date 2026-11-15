@@ -1,0 +1,23 @@
+<!--
+&lt;!--/*@thymesVar id="files" type="java.util.List&lt;java.lang.String&gt;"*/--&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;Email - 测试页面&lt;/title&gt;
+    &lt;style&gt;
+        .main{
+            max-width: 1024px;
+            margin: 0 auto;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class="main"&gt;
+    &lt;div th:each="file : ${files}"&gt;
+        &lt;a th:href="${file}" th:text="${file}"&gt;&lt;/a&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+-->
