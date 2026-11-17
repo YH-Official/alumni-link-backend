@@ -1,0 +1,23 @@
+# ── 构建产物 ──
+build/
+buildSrc/build/
+orm/build/
+.gradle/
+buildSrc/.gradle/
+.kotlin/
+
+# ── 便携运行时（二进制分发包，体积数百 MB，不入库）──
+# 注意：runtime/dbdata 是已跟踪的种子数据，这里不排除，避免改变现有跟踪状态。
+runtime/jdk21/
+runtime/mariadb/
+runtime/_packages/
+runtime/logs/
+
+# ── 运行期文件与日志 ──
+work/log/
+work/files/
+
+# ── IDE / 系统 ──
+.idea/
+*.iml
+.DS_Store
