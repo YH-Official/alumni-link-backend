@@ -44,6 +44,12 @@ class ResponseWrapper(
 
         val responseDecorator = object : ServerHttpResponseDecorator(originalResponse) {
             override fun writeWith(body: Publisher<out DataBuffer>): Mono<Void> {
+                // 这个包装只服务于接口返回值。HTML 页面（比如 /admin/db）被塞进 data 字段就废了，
+                // 所以按内容类型放行，行为和没装这个过滤器时完全一致。
+                val contentType = headers.contentType
+                if (contentType != null && contentType.isCompatibleWith(MediaType.TEXT_HTML)) {
+                    return super.writeWith(body)
+                }
                 return Flux.from(body).collectList().flatMap { buffers ->
                     val bytes = buffers.flatMap {
                         val byteArray = ByteArray(it.readableByteCount())

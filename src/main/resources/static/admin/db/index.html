@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据库管理 · 校友录</title>
+<style>
+:root{
+  --bd:#dcdfe6;--fg:#1f2329;--mut:#6b7280;--bg:#f6f7f9;--pri:#2f6fed;--pri-soft:#eaf1fe;
+  --ok:#166534;--ok-bg:#eaf6ee;--err:#991b1b;--err-bg:#fdecec;--warn:#b45309;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.6 "Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+}
+a{color:var(--pri);text-decoration:none;cursor:pointer}
+a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.mut{color:var(--mut)}
+.hide{display:none!important}
+
+/* ---------- 顶栏 ---------- */
+header{
+  height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;
+  background:#fff;border-bottom:1px solid var(--bd);position:relative;z-index:5;
+}
+header .brand{font-size:15px;font-weight:600;white-space:nowrap}
+header .meta{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .spacer{flex:1}
+header .who{font-size:12px;color:var(--mut);white-space:nowrap}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--bd);
+  border-radius:5px;background:#fff;color:var(--fg);font-size:13px;white-space:nowrap;
+}
+.btn:hover{background:#f2f4f7}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.dan{color:var(--err);border-color:#f0b4b4}
+.btn.dan:hover{background:#fdf2f2}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- 布局 ---------- */
+.layout{display:flex;height:calc(100% - 52px);min-height:0}
+aside{
+  width:296px;flex:0 0 296px;background:#fff;border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;min-height:0;
+}
+aside .search{padding:10px 12px;border-bottom:1px solid var(--bd)}
+aside input.searchbox{
+  width:100%;padding:6px 9px;border:1px solid var(--bd);border-radius:5px;font:13px inherit;
+}
+aside .tables{overflow:auto;flex:1;padding:6px 0 20px}
+aside .grp{padding:10px 14px 4px;font-size:11px;color:var(--mut);letter-spacing:.06em}
+.titem{
+  display:flex;align-items:baseline;gap:8px;padding:6px 14px;cursor:pointer;border-left:3px solid transparent;
+}
+.titem:hover{background:#f7f9fc}
+.titem.on{background:var(--pri-soft);border-left-color:var(--pri)}
+.titem .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.titem .raw{font-size:11px;color:var(--mut);font-family:ui-monospace,Menlo,monospace}
+.titem .cnt{font-size:11px;color:var(--mut);white-space:nowrap}
+main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+
+/* ---------- 主区 ---------- */
+.mainbody{flex:1;min-height:0;overflow:auto;padding:14px 16px 24px}
+.toolbar{
+  display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;
+}
+.toolbar form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.toolbar label{display:block;font-size:11px;color:var(--mut);margin-bottom:3px}
+.toolbar select,.toolbar input{
+  padding:5px 8px;border:1px solid var(--bd);border-radius:5px;font:13px inherit;background:#fff;
+}
+.titlebar{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
+.titlebar h2{margin:0;font-size:17px}
+.titlebar .code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--mut)}
+.tag{
+  font-size:11px;padding:1px 8px;border-radius:10px;border:1px solid var(--bd);color:var(--mut);
+  background:#fafbfc;white-space:nowrap;
+}
+.tag.warn{border-color:#f3d6a8;background:#fdf6e8;color:var(--warn)}
+
+.gridwrap{border:1px solid var(--bd);border-radius:6px;background:#fff;overflow:auto;max-height:calc(100vh - 300px)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid #eceef2;padding:6px 9px;text-align:left;vertical-align:top}
+th{
+  background:#fafbfc;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:1;
+  border-bottom:1px solid var(--bd);
+}
+th .thsub{font-weight:400;font-size:10px;color:var(--mut);font-family:ui-monospace,Menlo,monospace}
+td.cell{
+  max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;
+}
+td.null{color:#9aa1ac;font-style:italic}
+td.mask{color:var(--warn);letter-spacing:.1em}
+td.ops{white-space:nowrap;text-align:right}
+td.ops a{margin-left:10px;font-size:12px}
+.empty{padding:34px 16px;text-align:center;color:var(--mut)}
+.pager{display:flex;gap:12px;align-items:center;margin:12px 0 0;font-size:13px;flex-wrap:wrap}
+.pager .disabled{color:#c1c6cf}
+
+/* ---------- 弹层 ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(17,24,39,.42);display:flex;align-items:flex-start;
+  justify-content:center;padding:40px 16px;overflow:auto;z-index:20;
+}
+.panel{
+  background:#fff;border-radius:8px;box-shadow:0 12px 40px rgba(15,23,42,.18);
+  width:100%;max-width:880px;
+}
+.panel.small{max-width:420px}
+.panel .phead{
+  display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--bd);
+}
+.panel .phead h3{margin:0;font-size:15px;flex:1}
+.panel .pbody{padding:16px 18px;max-height:calc(100vh - 240px);overflow:auto}
+.panel .pfoot{
+  padding:12px 18px;border-top:1px solid var(--bd);display:flex;gap:10px;align-items:center;
+}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px 16px}
+.fld{min-width:0}
+.fld>label{display:block;font-size:11px;color:var(--mut);margin-bottom:3px}
+.fld .nm{color:var(--fg);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+.fld .hint{font-size:11px;color:var(--mut);margin-top:3px}
+.fld input,.fld select,.fld textarea{
+  width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:5px;
+  font:13px ui-monospace,Menlo,monospace;background:#fff;color:var(--fg);
+}
+.fld textarea{min-height:70px;resize:vertical}
+.fld input:disabled{background:#f5f6f8;color:var(--mut)}
+.nullbox{display:flex!important;align-items:center;gap:5px;font-size:12px;color:var(--mut);margin-top:4px}
+.nullbox input{width:auto}
+.ddl{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:6px;overflow:auto;
+  font:12px/1.65 ui-monospace,Menlo,monospace;white-space:pre;margin:0}
+.msg{padding:9px 12px;border-radius:6px;font-size:13px;margin-bottom:12px}
+.msg.err{background:var(--err-bg);border:1px solid #f3c1c1;color:var(--err)}
+.msg.ok{background:var(--ok-bg);border:1px solid #b6e0c3;color:var(--ok)}
+
+/* ---------- 登录 ---------- */
+.login{max-width:360px;margin:9vh auto 0;background:#fff;border:1px solid var(--bd);border-radius:10px;
+  padding:24px;box-shadow:0 10px 30px rgba(15,23,42,.08)}
+.login h1{font-size:17px;margin:0 0 4px}
+.login p{margin:0 0 18px;color:var(--mut);font-size:12px}
+.login label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+.login input{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font:14px inherit}
+.login button{width:100%;margin-top:18px;padding:9px;justify-content:center}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;right:18px;bottom:18px;max-width:420px;padding:10px 14px;border-radius:6px;
+  font-size:13px;box-shadow:0 8px 24px rgba(15,23,42,.16);z-index:40;background:#fff;
+  border:1px solid var(--bd);
+}
+#toast.err{background:var(--err-bg);border-color:#f3c1c1;color:var(--err)}
+#toast.ok{background:var(--ok-bg);border-color:#b6e0c3;color:var(--ok)}
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="loginView" class="hide">
+  <div class="login">
+    <h1>数据库管理</h1>
+    <p>用校友录账号登录，只有超级管理员能进入。</p>
+    <label for="lgUser">用户名 / 手机号</label>
+    <input id="lgUser" autocomplete="username" placeholder="admin">
+    <label for="lgPass">密码</label>
+    <input id="lgPass" type="password" autocomplete="current-password" placeholder="登录密码">
+    <button class="btn pri" id="lgBtn">登录</button>
+  </div>
+</div>
+
+<!-- 主体 -->
+<div id="appView" class="hide" style="height:100%">
+  <header>
+    <span class="brand">校友录 · 数据库管理</span>
+    <span class="meta" id="dbMeta"></span>
+    <span class="spacer"></span>
+    <span class="who" id="whoami"></span>
+    <button class="btn" id="btnReload">刷新结构</button>
+    <button class="btn" id="btnLogout">退出</button>
+  </header>
+  <div class="layout">
+    <aside>
+      <div class="search"><input class="searchbox" id="tblSearch" placeholder="搜索表名 / 中文名"></div>
+      <div class="tables" id="tableList"></div>
+    </aside>
+    <main><div class="mainbody" id="mainBody"><div class="empty">从左侧选择一张表开始</div></div></main>
+  </div>
+</div>
+
+<div id="editorView" class="overlay hide"></div>
+<div id="ddlView" class="overlay hide"></div>
+<div id="toast" class="hide"></div>
+
+<script>
+'use strict';
+
+/* ------------------------------------------------------------------ 常量 */
+
+const TOKEN_KEY = 'xyl.dbadmin.token';
+
+// 表分组规则，按顺序匹配，最后剩下的落到「其他」
+const GROUPS = [
+  ['系统与权限', /^(sys_|view_)/],
+  ['学校与班级', /^alk_(school|college|major|class|education|org_class)/],
+  ['校友组织', /^alk_(organization|organization_member)/],
+  ['用户资料', /^alk_(user_|work_experience)/],
+  ['动态与轮播', /^alk_(post|comment|like|banner)/],
+  ['论坛', /^alk_forum/],
+  ['关系与消息', /^alk_(connection|conversation|message|group_conversation)/],
+  ['认领与捐赠', /^alk_(claim|donation|company)/],
+  ['招聘与简历', /^alk_(job|resume)/],
+  ['文件与缓存', /^oss_/],
+];
+
+// 表的中文名
+const TABLE_LABELS = {
+  sys_user:'用户账号', sys_role:'角色', sys_user_roles:'用户角色关联', sys_sessions:'登录会话',
+  sys_cache:'系统缓存', sys_logs:'系统日志', view_user_role:'用户角色视图',
+  alk_user_profile:'用户资料', alk_user_tag:'用户标签',
+  alk_school:'学校', alk_college:'学院', alk_major:'专业', alk_class:'班级',
+  alk_school_admin:'学校管理员', alk_college_admin:'学院管理员',
+  alk_major_admin:'专业管理员', alk_class_admin:'班级管理员',
+  alk_organization:'校友组织', alk_organization_member:'组织成员', alk_org_class:'组织关联班级',
+  alk_education:'教育经历', alk_work_experience:'工作经历',
+  alk_post:'动态', alk_comment:'评论', alk_like:'点赞', alk_banner:'轮播图',
+  alk_forum_category:'论坛分区', alk_forum_post:'论坛帖子', alk_forum_comment:'论坛回复',
+  alk_forum_like:'论坛点赞', alk_forum_share:'论坛分享', alk_forum_collection:'论坛收藏',
+  alk_forum_user_follow_category:'论坛关注分区',
+  alk_connection:'好友关系', alk_connection_privacy:'关系隐私设置',
+  alk_conversation:'单聊会话', alk_message:'消息',
+  alk_group_conversation:'群聊会话', alk_group_conversation_member:'群聊成员',
+  alk_claim:'认领记录', alk_claim_item:'认领物品', alk_company:'企业', alk_company_claim:'企业认领',
+  alk_donation:'捐赠记录', alk_job:'招聘职位', alk_job_application:'投递记录',
+  alk_job_favorite:'职位收藏', alk_resume:'简历', oss_user_file:'上传文件',
+};
+
+// 列的中文名
+const COLUMN_LABELS = {
+  id:'主键', user_id:'用户', user_name:'用户名', real_name:'真实姓名', password:'密码哈希',
+  phone:'手机号', email:'邮箱', avatar:'头像', background:'背景图', is_use:'已启用',
+  name:'名称', title:'标题', subtitle:'副标题', content:'内容', images:'图片', image_url:'图片地址',
+  location:'位置', visibility:'可见性', sort_order:'排序值', is_enabled:'已启用',
+  likes_count:'点赞数', comments_count:'评论数', shares_count:'分享数', view_count:'浏览数',
+  category_id:'分类', school_id:'学校', college_id:'学院', major_id:'专业', class_id:'班级',
+  school:'学校名', college:'学院名', major:'专业名', class_name:'班级名', grade:'年级',
+  student_id:'学号', faculty:'院系', gender:'性别', birthday:'生日', graduation_year:'毕业年份',
+  current_city:'所在城市', introduction:'简介', company:'公司', position:'职位', industry:'行业',
+  wechat:'微信', qq:'QQ', is_public:'公开', member_count:'成员数', status:'状态',
+  role_name:'角色名', type:'类型', value:'值', key:'键', data:'会话数据',
+  created_at:'创建时间', created_by:'创建人', updated_at:'更新时间', updated_by:'更新人',
+  deleted:'已删除', conversation_id:'会话', sender_id:'发送人', receiver_id:'接收人',
+  message_type:'消息类型', is_read:'已读', send_status:'发送状态', is_recalled:'已撤回',
+  recalled_at:'撤回时间', is_sse_pushed:'已推送', target_type:'跳转类型', target_id:'目标ID',
+  link_url:'外链地址', is_admin:'管理员', is_muted:'禁言', is_top:'置顶',
+  group_conversation_id:'群聊', organization_id:'组织', level:'级别', job_id:'职位',
+  resume_id:'简历', amount:'金额', donor_name:'捐赠人', company_name:'企业名',
+};
+
+/* ------------------------------------------------------------------ 状态 */
+
+const state = {
+  token: localStorage.getItem(TOKEN_KEY) || '',
+  me: null,
+  catalog: [],
+  table: null,        // 当前表的元信息（来自 browse.table）
+  rows: [],
+  page: 1,
+  size: 25,
+  filterColumn: '',
+  filterValue: '',
+  total: 0,
+  pages: 1,
+  editingPk: null,
+  keyword: '',
+};
+
+const $ = (id) => document.getElementById(id);
+
+/* ------------------------------------------------------------------ 工具 */
+
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function tableLabel(name) { return TABLE_LABELS[name] || name; }
+function columnLabel(name) { return COLUMN_LABELS[name] || name; }
+
+function isSecret(name) { return /password|token|secret|credential/i.test(name || ''); }
+function isBool(c) { return c.dataType === 'bit' || (c.dataType === 'tinyint' && /^tinyint\(1\)/.test(c.columnType)); }
+function isLong(c) { return ['text','tinyinttext','mediumtext','longtext','json'].includes(c.dataType); }
+
+let toastTimer = null;
+function toast(message, kind) {
+  const box = $('toast');
+  box.textContent = message;
+  box.className = kind || '';
+  box.classList.remove('hide');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => box.classList.add('hide'), kind === 'err' ? 6000 : 3200);
+}
+
+/* ------------------------------------------------------------------ 请求 */
+
+async function api(path, body) {
+  const res = await fetch('/api/admin/db/' + path, {
+    method: 'POST',
+    headers: Object.assign(
+      { 'Content-Type': 'application/json' },
+      state.token ? { Authorization: state.token } : {},
+    ),
+    body: JSON.stringify(body || {}),
+  });
+  let json = null;
+  try { json = await res.json(); } catch (e) { /* 非 JSON 响应 */ }
+  const code = json && typeof json.code === 'number' ? json.code : res.status;
+  if (!res.ok || code >= 400) {
+    const error = new Error(friendlyError(code, json && json.msg));
+    error.status = code;
+    throw error;
+  }
+  return json ? json.data : null;
+}
+
+/** 有些全局异常会带上 ProblemDetail 的 toString，落到页面上不好看，这里兜一下。 */
+function friendlyError(code, message) {
+  const raw = message && String(message);
+  const usable = raw && raw.indexOf('ProblemDetail[') < 0 && raw.indexOf(', ProblemDetail') < 0;
+  if (usable) return raw;
+  if (code === 401) return '登录状态已失效，请重新登录';
+  if (code === 403) return '没有权限访问数据库管理页';
+  if (code === 404) return '找不到对应的数据';
+  return '请求失败（HTTP ' + code + '）';
+}
+
+async function login(name, password) {
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userName: name, password }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json) throw new Error((json && json.msg) || '登录失败');
+  const data = json.data || json;
+  if (!data || !data.authorization) throw new Error('登录响应里没有会话令牌');
+  return data.authorization;
+}
+
+/* ------------------------------------------------------------------ 启动 */
+
+function showLogin(message) {
+  $('appView').classList.add('hide');
+  $('loginView').classList.remove('hide');
+  $('lgPass').value = '';
+  if (message) toast(message, 'err');
+  setTimeout(() => $('lgUser').focus(), 30);
+}
+
+function showApp() {
+  $('loginView').classList.add('hide');
+  $('appView').classList.remove('hide');
+  $('dbMeta').textContent = state.me
+    ? state.me.database + ' · ' + state.me.serverVersion
+    : '';
+  $('whoami').textContent = state.me
+    ? state.me.realName + '（' + state.me.userName + ' / ' + state.me.roleName + '）'
+    : '';
+}
+
+function clearToken() {
+  state.token = '';
+  state.me = null;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+async function boot() {
+  if (state.token) {
+    try {
+      state.me = await api('session', {});
+      showApp();
+      await loadCatalog();
+      return;
+    } catch (e) {
+      if (e.status === 401) clearToken();
+      showLogin(e.message);
+      return;
+    }
+  }
+  showLogin();
+}
+
+/* ------------------------------------------------------------------ 目录 */
+
+async function loadCatalog() {
+  const data = await api('catalog', {});
+  state.catalog = data.tables || [];
+  renderSidebar();
+  if (!state.table && state.catalog.length) {
+    await openTable(state.catalog[0].name);
+  }
+}
+
+function renderSidebar() {
+  const keyword = state.keyword.trim().toLowerCase();
+  const matched = state.catalog.filter((t) => {
+    if (!keyword) return true;
+    return t.name.toLowerCase().includes(keyword)
+      || tableLabel(t.name).toLowerCase().includes(keyword);
+  });
+
+  const buckets = new Map(GROUPS.map((g) => [g[0], []]));
+  buckets.set('其他', []);
+  matched.forEach((t) => {
+    const group = GROUPS.find((g) => g[1].test(t.name));
+    buckets.get(group ? group[0] : '其他').push(t);
+  });
+
+  let html = '';
+  buckets.forEach((items, title) => {
+    if (!items.length) return;
+    html += '<div class="grp">' + esc(title) + '</div>';
+    items.forEach((t) => {
+      const on = state.table && state.table.name === t.name ? ' on' : '';
+      const count = t.type === 'BASE TABLE' ? (t.rows + ' 行') : '视图';
+      html += '<div class="titem' + on + '" data-table="' + esc(t.name) + '" title="' + esc(t.comment || t.name) + '">'
+        + '<span class="nm">' + esc(tableLabel(t.name)) + '<span class="raw"> ' + esc(t.name) + '</span></span>'
+        + '<span class="cnt">' + esc(count) + '</span>'
+        + '</div>';
+    });
+  });
+  $('tableList').innerHTML = html || '<div class="empty">没有匹配的表</div>';
+}
+
+/* ------------------------------------------------------------------ 浏览 */
+
+async function openTable(name) {
+  state.page = 1;
+  state.filterColumn = '';
+  state.filterValue = '';
+  await loadRows(name);
+}
+
+async function loadRows(name) {
+  const table = name || (state.table && state.table.name);
+  if (!table) return;
+  const data = await api('browse', {
+    table,
+    page: state.page,
+    size: state.size,
+    filterColumn: state.filterColumn || null,
+    filterValue: state.filterValue || null,
+  });
+  state.table = data.table;
+  state.rows = data.rows || [];
+  state.total = data.total;
+  state.page = data.page;
+  state.pages = data.pages;
+  renderSidebar();
+  renderMain();
+}
+
+function cellHtml(column, value) {
+  if (isSecret(column.name)) {
+    return '<td class="cell mask" title="打码列，值不会显示在页面上">••••••</td>';
+  }
+  if (value === null || value === undefined) return '<td class="cell null">NULL</td>';
+  const text = String(value);
+  const short = text.length > 140 ? text.slice(0, 140) + '…' : text;
+  return '<td class="cell" title="' + esc(text) + '">' + esc(short) + '</td>';
+}
+
+function pagerHtml() {
+  const total = '共 ' + state.total + ' 行';
+  if (state.pages <= 1) return '<div class="pager"><span class="mut">' + total + '</span></div>';
+  const link = (page, text) => (page >= 1 && page <= state.pages && page !== state.page)
+    ? '<a data-page="' + page + '">' + text + '</a>'
+    : '<span class="disabled">' + text + '</span>';
+  return '<div class="pager">'
+    + link(1, '首页') + link(state.page - 1, '上一页')
+    + '<span class="mut">第 ' + state.page + ' / ' + state.pages + ' 页，' + total + '</span>'
+    + link(state.page + 1, '下一页') + link(state.pages, '末页')
+    + '</div>';
+}
+
+function renderMain() {
+  const t = state.table;
+  if (!t) {
+    $('mainBody').innerHTML = '<div class="empty">从左侧选择一张表开始</div>';
+    return;
+  }
+  const can = t.writable;
+  const columns = t.columns;
+  const readonlyTag = can
+    ? ''
+    : '<span class="tag warn">' + esc(t.readonlyReason || '只读') + '</span>';
+
+  const options = columns.map((c) =>
+    '<option value="' + esc(c.name) + '"' + (c.name === state.filterColumn ? ' selected' : '') + '>'
+    + esc(columnLabel(c.name)) + ' · ' + esc(c.name) + '</option>').join('');
+
+  const head = columns.map((c) =>
+    '<th>' + esc(columnLabel(c.name)) + '<div class="thsub">' + esc(c.name) + '</div></th>').join('')
+    + (can ? '<th style="text-align:right">操作</th>' : '');
+
+  const body = state.rows.length
+    ? state.rows.map((row) => {
+        const cells = columns.map((c) => cellHtml(c, row[c.name])).join('');
+        if (!can) return '<tr>' + cells + '</tr>';
+        const pk = row[t.primary.name] === null || row[t.primary.name] === undefined
+          ? '' : String(row[t.primary.name]);
+        return '<tr>' + cells
+          + '<td class="ops">'
+          + '<a data-edit="' + esc(pk) + '">修改</a>'
+          + '<a data-del="' + esc(pk) + '" style="color:var(--err)">删除</a>'
+          + '</td></tr>';
+      }).join('')
+    : '<tr><td class="empty" colspan="' + (columns.length + (can ? 1 : 0)) + '">这张表当前没有数据</td></tr>';
+
+  $('mainBody').innerHTML =
+    '<div class="titlebar">'
+      + '<h2>' + esc(tableLabel(t.name)) + '</h2>'
+      + '<span class="code">' + esc(t.name) + '</span>'
+      + readonlyTag
+      + '<a id="btnDdl">建表语句</a>'
+      + (t.comment ? '<span class="mut">' + esc(t.comment) + '</span>' : '')
+    + '</div>'
+    + '<div class="toolbar">'
+      + '<form id="filterForm">'
+        + '<div><label>筛选列</label><select id="fcol">' + options + '</select></div>'
+        + '<div><label>值包含</label><input id="fval" value="' + esc(state.filterValue) + '" placeholder="留空表示不过滤" style="width:190px"></div>'
+        + '<div><label>每页</label><input id="fsize" value="' + state.size + '" style="width:70px"></div>'
+        + '<button class="btn" type="submit">筛选</button>'
+        + '<button class="btn" type="button" id="btnReset">重置</button>'
+      + '</form>'
+      + '<span class="spacer" style="flex:1"></span>'
+      + (can ? '<button class="btn pri" id="btnNew">＋ 新增一行</button>' : '')
+    + '</div>'
+    + '<div class="gridwrap"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>'
+    + pagerHtml();
+}
+
+/* ------------------------------------------------------------------ 编辑 */
+
+function renderEditor(values, pk) {
+  const t = state.table;
+  const columns = t.columns;
+  const isNew = !pk;
+
+  const fields = columns.map((c) => {
+    const value = values[c.name];
+    const id = 'f_' + c.name;
+    const nullable = c.nullable && !c.pk && !c.generated;
+    let control;
+    let hint = c.columnType + (c.comment ? ' · ' + c.comment : '');
+
+    if (c.generated) {
+      control = '<input value="生成列，不可写" disabled>';
+    } else if (c.pk && !isNew) {
+      control = '<input id="' + id + '" value="' + esc(value) + '" disabled>';
+    } else if (isSecret(c.name)) {
+      control = '<input id="' + id + '" value="" placeholder="留空表示不修改">';
+      hint = c.columnType + ' · 打码列，不回显；填写即整体覆盖';
+    } else if (isBool(c)) {
+      const current = value === null || value === undefined ? '' : String(value);
+      const opts = (nullable ? '<option value=""' + (current === '' ? ' selected' : '') + '>NULL</option>' : '')
+        + '<option value="0"' + (current === '0' ? ' selected' : '') + '>否</option>'
+        + '<option value="1"' + (current === '1' ? ' selected' : '') + '>是</option>';
+      control = '<select id="' + id + '">' + opts + '</select>';
+    } else if (isLong(c)) {
+      control = '<textarea id="' + id + '" placeholder="' + esc(c.columnType) + '">' + esc(value) + '</textarea>';
+    } else {
+      control = '<input id="' + id + '" value="' + esc(value) + '" placeholder="' + esc(c.columnType) + '">';
+    }
+
+    const nullBox = (nullable && !isSecret(c.name))
+      ? '<label class="nullbox"><input type="checkbox" id="n_' + c.name + '"'
+        + (value === null || value === undefined ? ' checked' : '') + '> 存为 NULL</label>'
+      : '';
+
+    const pkMark = c.pk ? '<span class="tag">主键</span>' : '';
+    return '<div class="fld">'
+      + '<label>' + esc(columnLabel(c.name)) + ' <span class="nm">' + esc(c.name) + '</span>' + pkMark + '</label>'
+      + control
+      + '<div class="hint">' + esc(hint) + '</div>'
+      + nullBox
+      + '</div>';
+  }).join('');
+
+  $('editorView').innerHTML =
+    '<div class="panel">'
+      + '<div class="phead">'
+        + '<h3>' + (isNew ? '新增一行' : '修改一行') + ' · ' + esc(tableLabel(t.name)) + '</h3>'
+        + '<span class="code mut">' + esc(t.name) + (isNew ? '' : ' / ' + esc(pk)) + '</span>'
+      + '</div>'
+      + '<div class="pbody">'
+        + '<div class="msg ok" style="background:#f8fafc;border-color:var(--bd);color:var(--mut)">'
+        + '留空的列：可空列写 NULL，有默认值的列交给数据库默认值；打码列留空表示不修改。'
+        + '</div>'
+        + '<div class="fields">' + fields + '</div>'
+      + '</div>'
+      + '<div class="pfoot">'
+        + '<button class="btn pri" id="btnSave">保存</button>'
+        + '<button class="btn" id="btnCancel">取消</button>'
+        + '<span class="mut" id="editorMsg"></span>'
+      + '</div>'
+    + '</div>';
+  $('editorView').classList.remove('hide');
+  state.editingPk = pk || null;
+}
+
+async function openEditor(pk) {
+  let values = {};
+  if (pk) {
+    const data = await api('row', { table: state.table.name, pk });
+    values = data.values || {};
+  }
+  renderEditor(values, pk);
+}
+
+function closeEditor() {
+  $('editorView').classList.add('hide');
+  $('editorView').innerHTML = '';
+  state.editingPk = null;
+}
+
+async function saveEditor() {
+  const values = {};
+  const nulls = [];
+  state.table.columns.forEach((c) => {
+    const input = $('f_' + c.name);
+    if (!input) return;
+    values[c.name] = input.value;
+    const box = $('n_' + c.name);
+    if (box && box.checked) nulls.push(c.name);
+  });
+
+  const button = $('btnSave');
+  button.disabled = true;
+  button.textContent = '保存中…';
+  try {
+    const data = await api('save', {
+      table: state.table.name,
+      pk: state.editingPk,
+      values,
+      nulls,
+    });
+    closeEditor();
+    toast(data.message || '已保存', 'ok');
+    await loadRows();
+  } catch (e) {
+    $('editorMsg').textContent = e.message;
+    $('editorMsg').style.color = 'var(--err)';
+    button.disabled = false;
+    button.textContent = '保存';
+  }
+}
+
+async function removeRow(pk) {
+  if (!confirm('确定删除主键 ' + pk + ' 这一行？删除后无法撤销。')) return;
+  try {
+    const data = await api('delete', { table: state.table.name, pk });
+    toast(data.message || '已删除', 'ok');
+    await loadRows();
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+/* ------------------------------------------------------------------ 建表语句 */
+
+async function showDdl() {
+  try {
+    const data = await api('ddl', { table: state.table.name });
+    $('ddlView').innerHTML =
+      '<div class="panel">'
+        + '<div class="phead"><h3>建表语句 · ' + esc(state.table.name) + '</h3>'
+        + '<button class="btn" id="ddlClose">关闭</button></div>'
+        + '<div class="pbody"><pre class="ddl">' + esc(data.ddl) + '</pre></div>'
+      + '</div>';
+    $('ddlView').classList.remove('hide');
+    $('ddlClose').onclick = () => {
+      $('ddlView').classList.add('hide');
+      $('ddlView').innerHTML = '';
+    };
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+/* ------------------------------------------------------------------ 事件 */
+
+document.addEventListener('click', (event) => {
+  const target = event.target;
+
+  const tableItem = target.closest('.titem');
+  if (tableItem) {
+    openTable(tableItem.dataset.table).catch((e) => toast(e.message, 'err'));
+    return;
+  }
+
+  const pageLink = target.closest('[data-page]');
+  if (pageLink) {
+    state.page = Number(pageLink.dataset.page);
+    loadRows().catch((e) => toast(e.message, 'err'));
+    return;
+  }
+
+  const editLink = target.closest('[data-edit]');
+  if (editLink) {
+    openEditor(editLink.dataset.edit).catch((e) => toast(e.message, 'err'));
+    return;
+  }
+
+  const delLink = target.closest('[data-del]');
+  if (delLink) {
+    removeRow(delLink.dataset.del);
+    return;
+  }
+
+  switch (target.id) {
+    case 'lgBtn':
+      doLogin();
+      break;
+    case 'btnLogout':
+      clearToken();
+      state.table = null;
+      showLogin('已退出登录');
+      break;
+    case 'btnReload':
+      loadCatalog().then(() => loadRows()).catch((e) => toast(e.message, 'err'));
+      break;
+    case 'btnNew':
+      openEditor(null).catch((e) => toast(e.message, 'err'));
+      break;
+    case 'btnSave':
+      saveEditor();
+      break;
+    case 'btnCancel':
+      closeEditor();
+      break;
+    case 'btnReset':
+      state.filterColumn = '';
+      state.filterValue = '';
+      state.page = 1;
+      loadRows().catch((e) => toast(e.message, 'err'));
+      break;
+    case 'btnDdl':
+      showDdl();
+      break;
+    case 'editorView':
+      if (target === $('editorView')) closeEditor();
+      break;
+    case 'ddlView':
+      if (target === $('ddlView')) {
+        $('ddlView').classList.add('hide');
+        $('ddlView').innerHTML = '';
+      }
+      break;
+  }
+});
+
+document.addEventListener('submit', (event) => {
+  if (event.target.id !== 'filterForm') return;
+  event.preventDefault();
+  state.filterColumn = $('fcol').value;
+  state.filterValue = $('fval').value;
+  const size = Number($('fsize').value);
+  state.size = (size >= 1 && size <= 200) ? size : 25;
+  state.page = 1;
+  loadRows().catch((e) => toast(e.message, 'err'));
+});
+
+document.addEventListener('input', (event) => {
+  if (event.target.id === 'tblSearch') {
+    state.keyword = event.target.value;
+    renderSidebar();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    if (!$('editorView').classList.contains('hide')) closeEditor();
+    else if (!$('ddlView').classList.contains('hide')) {
+      $('ddlView').classList.add('hide');
+      $('ddlView').innerHTML = '';
+    }
+  }
+  if (event.key === 'Enter' && event.target.id === 'lgPass') {
+    event.preventDefault();
+    doLogin();
+  }
+});
+
+async function doLogin() {
+  const userName = $('lgUser').value.trim();
+  const password = $('lgPass').value;
+  if (!userName) return toast('请填写用户名', 'err');
+  if (!password) return toast('请填写密码', 'err');
+
+  const button = $('lgBtn');
+  button.disabled = true;
+  button.textContent = '登录中…';
+  try {
+    const token = await login(userName, password);
+    state.token = token;
+    localStorage.setItem(TOKEN_KEY, token);
+    state.me = await api('session', {});
+    showApp();
+    await loadCatalog();
+  } catch (e) {
+    if (e.status === 401) clearToken();
+    showLogin(e.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = '登录';
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
