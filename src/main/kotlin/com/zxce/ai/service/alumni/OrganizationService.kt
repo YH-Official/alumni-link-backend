@@ -5,6 +5,16 @@ import com.zxce.ai.controller.alumni.BatchOrgItem
 import com.zxce.ai.manager.BroadcastManager
 import com.zxce.ai.model.alumni.*
 import com.zxce.ai.model.alumni.query.*
+import com.zxce.ai.model.forum.AlkForumCategory
+import com.zxce.ai.model.forum.AlkForumComment
+import com.zxce.ai.model.forum.AlkForumLike
+import com.zxce.ai.model.forum.AlkForumPost
+import com.zxce.ai.model.forum.AlkForumUserFollowCategory
+import com.zxce.ai.model.forum.query.QAlkForumCategory
+import com.zxce.ai.model.forum.query.QAlkForumComment
+import com.zxce.ai.model.forum.query.QAlkForumLike
+import com.zxce.ai.model.forum.query.QAlkForumPost
+import com.zxce.ai.model.forum.query.QAlkForumUserFollowCategory
 import com.zxce.ai.model.system.SysUserEntity
 import com.zxce.ai.model.system.query.QSysUserEntity
 import com.zxce.ai.model.system.query.QViewUserRoleEntity
@@ -1361,6 +1371,11 @@ class OrganizationService {
         }
         withContext(Dispatchers.IO) {
             school.save()
+            // 学校与论坛分区必须成对存在：「动态」页顶部标签、发布动态的分区选择器、
+            // 发帖权限校验都只读 alk_forum_category。分区原先要等首次发帖才懒创建
+            // （见 ForumService.createPost），所以新建的学校在两处都看不到，
+            // 表现为「管理中心创建了学校，但动态栏和发布动态里都没有」。
+            ensureSchoolForumCategory(ctx, school.id, school.name)
         }
         return school
     }
@@ -1395,12 +1410,15 @@ class OrganizationService {
         school.name = name
         withContext(Dispatchers.IO) {
             school.save()
+            // 学校改名后，「动态」栏的分区标签也要跟着更新，否则还显示旧校名
+            ensureSchoolForumCategory(ctx, school.id, school.name)
         }
         return school
     }
 
     /**
-     * 删除学校，仅超级管理员可用。会级联清理学校下的学院/专业/班级、组织、成员、管理员、群聊。
+     * 删除学校，仅超级管理员可用。会级联清理学校下的学院/专业/班级、组织、成员、管理员、群聊，
+     * 以及该学校对应的论坛分区（含分区下的帖子/评论/点赞与关注记录）。
      *
      * @param ctx 请求上下文
      * @param id 学校ID
@@ -1419,10 +1437,128 @@ class OrganizationService {
         }.toAsync().findOne() ?: throw NoSuchElementException("学校不存在")
 
         withContext(Dispatchers.IO) {
-            // 先级联清理：学校下的学院/专业/班级、组织、成员、管理员、群聊
+            // 先级联清理：学校下的学院/专业/班级、组织、成员、管理员、群聊、论坛分区
             cascadeDeleteChildren(ctx, schoolId = id)
             cleanupOrganizationsAndRelations(ctx, schoolId = id)
+            cascadeDeleteForumCategory(ctx, id)
             school.delete()
+        }
+    }
+
+    /**
+     * 确保学校有一一对应的论坛分区（`alk_forum_category`），已存在则复用并同步名称。
+     *
+     * 背景：「动态」页顶部标签、发布动态的分区选择器、发帖权限校验全部只读
+     * `alk_forum_category`，而分区原先是在首次发帖时才懒创建（见 `ForumService.createPost`），
+     * 因此新建的学校在两处都不显示，看起来像“学校创建失败”。
+     *
+     * 现在学校的分区随学校生命周期同步：
+     * 创建学校 → 建分区（本方法）；学校改名 → 同步分区名（本方法）；
+     * 删除学校 → 级联删除分区（[cascadeDeleteForumCategory]）。
+     *
+     * 注意：本方法使用同步查询，调用方必须已经在 `Dispatchers.IO` 中。
+     *
+     * @param ctx 请求上下文
+     * @param schoolId 学校ID
+     * @param schoolName 学校名称（分区的展示名）
+     */
+    private fun ensureSchoolForumCategory(ctx: Context, schoolId: UUID, schoolName: String) {
+        val existing = ctx.query<QAlkForumCategory> {
+            this.schoolId.eq(schoolId)
+            deleted.ne(true)
+        }.findOne()
+
+        if (existing != null) {
+            // 改名后分区标签要跟着变，否则「动态」栏还显示旧校名
+            if (existing.schoolName != schoolName) {
+                existing.schoolName = schoolName
+                existing.save()
+            }
+            return
+        }
+
+        ctx.createModel<AlkForumCategory> {
+            id = UUID.randomUUID()
+            this.schoolName = schoolName
+            this.schoolId = schoolId
+            this.organizationId = null
+            this.internalId = null
+            this.isActive = true
+            this.sortOrder = 0
+        }.save()
+    }
+
+    /**
+     * 级联清理学校对应的论坛分区及其内容。
+     *
+     * 背景：`alk_forum_category.school_id` 只是弱引用（数据库里没有外键约束），
+     * 学校被删除后分区行仍然残留、`is_active` 还保持 true；而「动态」页取分区时
+     * 只按 `is_active` / `deleted` 过滤，并不校验学校是否还存在，于是已删除的学校
+     * 会永久留在顶部标签栏、怎么删都删不掉。
+     *
+     * 典型现象：删掉测试学校 123 / 4321 / mm 之后，App「动态」栏里那三个标签还在。
+     *
+     * @param ctx 请求上下文
+     * @param schoolId 被删除的学校ID
+     */
+    private suspend fun cascadeDeleteForumCategory(ctx: Context, schoolId: UUID) {
+        withContext(Dispatchers.IO) {
+            val categories = ctx.query<QAlkForumCategory> {
+                this.schoolId.eq(schoolId)
+                deleted.ne(true)
+            }.findList()
+            if (categories.isEmpty()) return@withContext
+
+            val categoryIds = categories.map { it.id }
+
+            // 关注记录：隐藏并软删除，避免「我关注的分区」里残留
+            ctx.query<QAlkForumUserFollowCategory> {
+                this.categoryId.`in`(categoryIds)
+                deleted.ne(true)
+            }.findList().forEach {
+                it.isHidden = true
+                it.delete()
+            }
+
+            // 分区下的帖子、评论、点赞一并清理，避免「全部」列表里出现无归属的帖子
+            val postIds = ctx.query<QAlkForumPost> {
+                this.categoryId.`in`(categoryIds)
+                deleted.ne(true)
+            }.findList().map { it.id }
+
+            if (postIds.isNotEmpty()) {
+                val commentIds = ctx.query<QAlkForumComment> {
+                    this.postId.`in`(postIds)
+                    deleted.ne(true)
+                }.findList().map { it.id }
+
+                if (commentIds.isNotEmpty()) {
+                    ctx.query<QAlkForumLike> {
+                        this.targetType.eq(2)
+                        this.targetId.`in`(commentIds)
+                    }.findList().forEach { it.delete() }
+
+                    ctx.query<QAlkForumComment> {
+                        this.id.`in`(commentIds)
+                        deleted.ne(true)
+                    }.findList().forEach { it.delete() }
+                }
+
+                ctx.query<QAlkForumLike> {
+                    this.targetType.eq(1)
+                    this.targetId.`in`(postIds)
+                }.findList().forEach { it.delete() }
+
+                ctx.query<QAlkForumPost> {
+                    this.id.`in`(postIds)
+                    deleted.ne(true)
+                }.findList().forEach { it.delete() }
+            }
+
+            categories.forEach {
+                it.isActive = false
+                it.delete()
+            }
         }
     }
 
