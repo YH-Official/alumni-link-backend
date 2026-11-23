@@ -59,29 +59,22 @@ class LoginController {
     }
 
     /**
-     * 验证码校验接口，验证用户提交的验证码是否正确。
-     *
-     * @param context 请求上下文
-     * @param param 验证请求参数，包含验证码ID、验证码值、用户名和邮箱
-     * @return 验证结果
-     * @since 1.0.0
-     */
-    @PostMapping("/verify")
-    suspend fun verify(context: Context, @RequestBody param: VerifyFn): Any {
-        return loginService.verify(context, param.id, param.code, param.userName, param.email)
-    }
-
-    /**
      * 用户注册接口，创建新用户账号。
      *
      * @param context 请求上下文
-     * @param param 注册请求参数，包含用户名、密码、邮箱验证码和邮箱
+     * @param param 注册请求参数，包含用户名、密码和图形验证码
      * @return 注册成功的用户实体信息
      * @since 1.0.0
      */
     @PostMapping("/register")
     suspend fun register(context: Context, @RequestBody param: RegisterFn): SysUserEntity {
-        return loginService.register(context, param.userName, param.password, param.emailCode, param.email)
+        return loginService.register(
+            context,
+            param.userName,
+            param.password,
+            param.captchaId,
+            param.captchaCode
+        )
     }
 }
 
@@ -90,16 +83,9 @@ data class LoginFn(
     var password: String? = null
 )
 
-data class VerifyFn(
-    var id: Int = 0,
-    var code: String = "",
-    var userName: String = "",
-    var email: String = ""
-)
-
 data class RegisterFn(
     var userName: String = "",
     var password: String = "",
-    var emailCode: String = "",
-    var email: String = ""
+    var captchaId: Int = 0,
+    var captchaCode: String = ""
 )

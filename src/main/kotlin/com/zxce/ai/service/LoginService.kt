@@ -16,17 +16,13 @@ import com.zxce.ai.model.system.query.QSysUserEntity
 import com.zxce.ai.service.system.UserService
 import com.zxce.ai.util.bundle.*
 import com.zxce.ai.util.ebean.*
-import com.zxce.ai.util.email.sendMail
 import com.zxce.ai.util.session.Context
 import com.zxce.ai.util.session.IWebExchangeContext
-import com.zxce.ai.util.spring.ThymeleafContext
 import com.zxce.ai.util.success
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.http.ResponseEntity
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
-import org.thymeleaf.spring6.SpringWebFluxTemplateEngine
 import java.awt.Color
 import java.util.Base64
 import java.util.Date
@@ -85,9 +81,6 @@ class LoginService {
 
     @Autowired
     lateinit var publisher: ApplicationEventPublisher
-
-    @Autowired
-    lateinit var templateEngine: SpringWebFluxTemplateEngine
 
     @Autowired
     lateinit var cacheManager: CacheManager
@@ -215,96 +208,41 @@ class LoginService {
         }
     }
 
-    val emailVerifyCache by lazy { cacheManager["/system/login/email-verify"] }
-
-    /**
-     * 验证验证码并发送邮箱验证邮件
-     *
-     * 校验图形验证码是否正确，检查用户名和邮箱是否已存在，生成6位邮箱验证码并通过邮件发送。
-     *
-     * @param ctx 请求上下文，用于数据库查询和邮件发送
-     * @param id 验证码ID，用于从缓存中查找验证码
-     * @param code 用户输入的验证码答案
-     * @param userName 待注册的用户名
-     * @param email 待注册的邮箱地址
-     * @return 操作成功的响应实体
-     * @throws IllegalArgumentException 当验证码过期、不正确或用户名/邮箱已存在时抛出
-     */
-    suspend fun verify(
-        ctx: Context,
-        id: Int,
-        code: String,
-        userName: String,
-        email: String
-    ): ResponseEntity<ByteArray> {
-        ctx as IWebExchangeContext
-
-        val cache = captchaCache.query {
-            this.id.eq(id)
-        }.findOne()
-
-        cache ?: throw IllegalArgumentException("验证码已过期")
-        if (cache.value != code) throw IllegalArgumentException("验证码不正确")
-        val hasUser = ctx.query<QSysUserEntity> {
-            or {
-                this.userName.eq(userName)
-                this.email.eq(email)
-            }
-        }.exists()
-        if (hasUser) throw IllegalArgumentException("用户名或邮箱已存在")
-        cache.applyDatabase(ctx)
-        cache.delete()
-
-        val code1 = Math.random().toString().removePrefix("0.").substring(0 until 6)
-        emailVerifyCache.put(email, code1, 5.minutes)
-
-        val ctx1 = ThymeleafContext(ctx.exchange)
-
-        val map = bundleScope {
-            "code" set code1
-            "userName" set userName
-            "email" set email
-            "emailBase64" set Base64.getUrlEncoder().encodeToString(email.toByteArray())
-            "server" set ctx.serverHostString
-        }
-
-        ctx1.setVariables(map)
-
-        val html = templateEngine.process("email-verify", ctx1)
-        ctx.sendMail(email, "用户注册", html)
-
-        return success()
-    }
-
     /**
      * 用户注册
      *
-     * 验证邮箱验证码，创建新用户账号并分配默认角色。
+     * 校验图形验证码通过后创建新用户账号并分配默认角色。
+     * 注册不再需要邮箱与邮箱验证码。
      *
      * @param ctx 请求上下文，用于数据库操作
      * @param userName 注册的用户名
      * @param password 用户密码
-     * @param emailCode 邮箱验证码，用于验证邮箱有效性
-     * @param email 用户邮箱地址
+     * @param captchaId 图形验证码 ID
+     * @param captchaCode 用户输入的图形验证码答案
      * @return 新创建的用户实体，密码字段已置为null
-     * @throws IllegalArgumentException 当邮箱验证码过期或不正确时抛出
+     * @throws IllegalArgumentException 当图形验证码过期或不正确时抛出
      */
     suspend fun register(
         ctx: Context,
         userName: String,
         password: String,
-        emailCode: String,
-        email: String
+        captchaId: Int,
+        captchaCode: String
     ): SysUserEntity {
-        val emailCache = emailVerifyCache[email]
-        emailCache ?: throw IllegalArgumentException("邮箱验证码已过期，请重新获取")
-        if (emailCache != emailCode) throw IllegalArgumentException("邮箱验证码不正确")
-        emailVerifyCache.remove(email)
+        ctx as IWebExchangeContext
+
+        // 注册前仍需通过图形验证码人机校验
+        val cache = captchaCache.query {
+            this.id.eq(captchaId)
+        }.findOne()
+        cache ?: throw IllegalArgumentException("验证码已过期")
+        if (cache.value != captchaCode) throw IllegalArgumentException("验证码不正确")
+        cache.applyDatabase(ctx)
+        cache.delete()
 
         val out = userService.create(ctx, bundleScope {
             "userName" set userName
             "password" set password
-            "email" set email
             "roleId" set 4
         })
 
