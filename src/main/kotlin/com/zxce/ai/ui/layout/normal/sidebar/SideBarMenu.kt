@@ -21,9 +21,9 @@ import com.zxce.ai.ui.store.systemUiState
 
 @Preview
 @Composable
-fun SideBarMenu() {
+fun SideBarMenu(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(bottom = 10.dp), // 填充父容器
+        modifier = modifier.fillMaxSize().padding(bottom = 10.dp), // 填充父容器
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

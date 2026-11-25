@@ -36,6 +36,11 @@ fun SideBar() {
                 lineHeight = 1.6.em
             )
         }
-        SideBarMenu()
+        SideBarMenu(Modifier.weight(1f))
+
+        // 左下角：数据库管理入口
+        SideBarDatabaseButton(
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp)
+        )
     }
 }
