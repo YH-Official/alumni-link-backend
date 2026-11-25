@@ -1,0 +1,50 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    environment:
+      # 第一次启动后这个密码就固化在数据卷里了，之后改它要连库改用户
+      MARIADB_ROOT_PASSWORD: "${DB_PASSWORD:-123456}"
+      MARIADB_DATABASE: "alumin-link"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    image: "${ALUMNI_IMAGE:-alumni-link:1.0.0}"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      # 这三个变量由镜像里的 docker-entrypoint.sh 写进 application.yaml
+      DB_URL: "jdbc:mariadb://db:3306/alumin-link?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8"
+      DB_USER: "root"
+      DB_PASSWORD: "${DB_PASSWORD:-123456}"
+      # 空库首次建表时设为 true；建完必须改回 false，
+      # 否则每次启动都会 drop + create 全部表（数据全没）
+      DDL_BOOTSTRAP: "${DDL_BOOTSTRAP:-false}"
+    ports:
+      - "${APP_PORT:-7031}:7031"
+    volumes:
+      # 上传的图片和日志都在这里，容器重建不丢
+      - appwork:/app/work
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7031'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  dbdata:
+  appwork:

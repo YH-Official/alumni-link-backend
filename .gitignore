@@ -16,6 +16,8 @@ runtime/logs/
 # ── 运行期文件与日志 ──
 work/log/
 work/files/
+# 数据库备份含用户内容，不进版本库
+work/backup/
 
 # ── IDE / 系统 ──
 .idea/

@@ -1,0 +1,39 @@
+# 构建上下文只保留真正需要的东西。
+# 便携运行时的二进制（runtime/，几百 MB）和运行期数据（work/）绝不能进镜像。
+
+# ── 版本控制与构建缓存 ──
+.git
+.gitignore
+.gradle
+buildSrc/build
+buildSrc/.gradle
+.kotlin
+gradle
+
+# ── 便携运行时 ──
+runtime
+setup-env.cmd
+
+# ── 运行期数据：上传文件、日志、备份 ──
+work
+
+# ── 旧的 python 管理页（已被 /admin/db 取代）──
+adminui
+
+# ── 构建产物：只放行 fat jar，其余（classes、临时 jar）不需要 ──
+build/*
+!build/libs/
+build/libs/*
+!build/libs/*-fat.jar
+
+# ── 杂项 ──
+*.md
+start.cmd
+stop.cmd
+start.sh
+stop.sh
+setup-env.cmd
+stress-test-forum.ps1
+platforms.json
+Dockerfile
+.dockerignore
