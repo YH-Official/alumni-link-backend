@@ -3,6 +3,7 @@ package com.zxce.ai.ui.store
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.painter.Painter
 import com.zxce.ai.ui.util.ImageLoader
+import com.zxce.ai.ui.view.database.DatabasePage
 import com.zxce.ai.ui.view.index.IndexPage
 import com.zxce.ai.ui.view.log.LogPage
 import com.zxce.ai.ui.view.setting.SettingPage
@@ -31,6 +32,17 @@ class SystemUiState {
         val userPageIcon by lazy { ImageLoader.loadImageBootstrap("people", color = -1) }
         val logPageIcon by lazy { ImageLoader.loadImageBootstrap("list-columns-reverse", color = -1) }
         val settingPageIcon by lazy { ImageLoader.loadImageBootstrap("gear", color = -1) }
+        val databasePageIcon by lazy { ImageLoader.loadImageBootstrap("database", color = -1) }
+
+        /**
+         * 数据库管理页的菜单项。
+         *
+         * 它不放进 [allMenus]：入口固定在侧边栏左下角，由 [com.zxce.ai.ui.layout.normal.sidebar.SideBarDatabaseButton]
+         * 直接选中，避免菜单区里出现两个同样的入口。
+         */
+        val databaseMenu: SideBarMenuItem by lazy {
+            SideBarMenuItem("数据库管理", databasePageIcon) { DatabasePage() }
+        }
 
         init {
             reset()
